@@ -1,1 +1,0 @@
-cmd_/home/kernel/LIN/FicherosP1/Hello5/hello5.ko := ld -r -m elf_x86_64  -z max-page-size=0x200000 -T ./scripts/module-common.lds --build-id  -o /home/kernel/LIN/FicherosP1/Hello5/hello5.ko /home/kernel/LIN/FicherosP1/Hello5/hello5.o /home/kernel/LIN/FicherosP1/Hello5/hello5.mod.o ;  true

@@ -1,1 +1,0 @@
-cmd_/home/kernel/LIN/FicherosP1/Clipboard/clipboard.ko := ld -r -m elf_x86_64  -z max-page-size=0x200000 -T ./scripts/module-common.lds --build-id  -o /home/kernel/LIN/FicherosP1/Clipboard/clipboard.ko /home/kernel/LIN/FicherosP1/Clipboard/clipboard.o /home/kernel/LIN/FicherosP1/Clipboard/clipboard.mod.o ;  true

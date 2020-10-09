@@ -1,1 +1,0 @@
-cmd_/home/kernel/LIN/FicherosP1/Hello5/startstop.o := ld -m elf_x86_64  -z max-page-size=0x200000   -r -o /home/kernel/LIN/FicherosP1/Hello5/startstop.o /home/kernel/LIN/FicherosP1/Hello5/start.o /home/kernel/LIN/FicherosP1/Hello5/stop.o 
