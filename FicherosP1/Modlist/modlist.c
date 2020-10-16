@@ -12,7 +12,7 @@ MODULE_DESCRIPTION("Modlist Kernel Module - FDI-UCM");
 MODULE_AUTHOR("Xukai Chen, Daniel Alfaro");
 
 #define BUFFER_LENGTH       512
-#define TEMP_BUFFER_LENGTH		 128
+#define TEMP_BUFFER_LENGTH		 16
 #define COMMANDS_LENGTH		  100	
 
 static struct proc_dir_entry *proc_entry;
@@ -38,7 +38,7 @@ static ssize_t modlist_write(struct file *filp, const char __user *buf, size_t l
 
 	int available_space = BUFFER_LENGTH-1;
 	int num;
-	char kbuf[COMMANDS_LENGTH];
+	char command_buf[COMMANDS_LENGTH];
 	
 	struct list_item *item = NULL;
 
@@ -51,18 +51,19 @@ static ssize_t modlist_write(struct file *filp, const char __user *buf, size_t l
 	}
 
 	/* Transfer data from user to kernel space */
-	if (copy_from_user( kbuf, buf, len ))  
+	if (copy_from_user( command_buf, buf, len ))  
 		return -EFAULT;
 
-	kbuf[len] = '\0'; /* Add the `\0' */  
+	command_buf[len] = '\0'; /* Add the `\0' */ 
+	trace_printk("Current command: %s, with length: %lu\n", command_buf, len); 
 	*off+=len;            /* Update the file pointer */
 
-	if(sscanf(kbuf, "add %d", &num) == 1) {
+	if(sscanf(command_buf, "add %d", &num) == 1) {
 		item = (struct list_item *) vmalloc(sizeof (struct list_item));
 		item->data = num;
 		list_add_tail(&(item->links), &mylist);
 	}
-	else if(sscanf(kbuf, "remove %d", &num) == 1){
+	else if(sscanf(command_buf, "remove %d", &num) == 1){
 		struct list_item *it = NULL;
 		list_for_each_entry_safe(item, it, &mylist, links){
 			if(item->data == num){
@@ -71,7 +72,7 @@ static ssize_t modlist_write(struct file *filp, const char __user *buf, size_t l
 			}
 		}
 	}
-	else if(strncmp(kbuf, "cleanup", len) == 0){
+	else if(strncmp(command_buf, "cleanup", len-1) == 0){
 		modlist_cleanup();
 	}
 	else {
@@ -85,7 +86,7 @@ static ssize_t modlist_read(struct file *filp, char __user *buf, size_t len, lof
 	int nr_bytes;
 	struct list_item *it, *item = NULL;
 	char rd_buf[TEMP_BUFFER_LENGTH];
-	// char data_buf[10];
+	char data_buf[10];
 	char *ptr_rdbuf = rd_buf;
 
 	if ((*off) > 0) /* Tell the application that there is nothing left to read */
@@ -96,14 +97,15 @@ static ssize_t modlist_read(struct file *filp, char __user *buf, size_t len, lof
 		/*trace_printk("Current length of read buffer: %ld\n", (ptr_rdbuf - rd_buf));
 		trace_printk("Current len: %lu\n", len);
 		trace_printk("Current remaining buffer: %lu\n", (TEMP_BUFFER_LENGTH - (ptr_rdbuf - rd_buf)));
-		trace_printk("Current length written: %d\n", sprintf(data_buf, "%d\n", item->data));
+		trace_printk("Current length written: %d\n", sprintf(data_buf, "%d\n", item->data));*/
 		if ((TEMP_BUFFER_LENGTH - (ptr_rdbuf - rd_buf)) < sprintf(data_buf, "%d\n", item->data)){
 			trace_printk("Current length of read buffer: %ld\n, not enougth space on buffer", (ptr_rdbuf - rd_buf));
-			break;
-		}*/
+			return -ENOSPC;
+		}
 		ptr_rdbuf += sprintf(ptr_rdbuf, "%d\n", item->data);
 	}
 	nr_bytes = ptr_rdbuf - rd_buf;
+	
 	if (len<nr_bytes)
 		return -ENOSPC;
 
