@@ -6,6 +6,7 @@
 #include <linux/uaccess.h>
 #include <linux/ftrace.h>
 #include <linux/list.h>
+#include <linux/seq_file.h>
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Modlist Kernel Module - FDI-UCM");
@@ -23,6 +24,30 @@ struct list_item {
 	int data;
 	struct list_head links;
 };
+
+static int count = 0;
+
+/**************************/
+/*******parte_opcional*****/
+
+static void *modlist_start(struct seq_file *f, loff_t *pos) { 
+	return (*pos < count) ? pos : NULL; 
+} 
+
+static void modlist_stop(struct seq_file *f, void *v) { 
+	/* Nothing to do */ 
+} 
+
+static void modlist_next(struct seq_file *f, void *v, loff_t *pos) { 
+	(*pos)++; 
+	if (*pos >= count) 
+		return NULL; 
+	return pos; 
+} 
+
+static int modlist_show(struct seq_file *pi, void *v) { 
+	return 0;
+}
 
 void modlist_cleanup ( void ){
 	/* cleanup de la lista */
@@ -63,6 +88,7 @@ static ssize_t modlist_write(struct file *filp, const char __user *buf, size_t l
 		item = (struct list_item *) vmalloc(sizeof (struct list_item));
 		item->data = num;
 		list_add_tail(&(item->links), &mylist);
+		count++;
 	}
 	else if(sscanf(command_buf, "remove %d", &num) == 1){
 		struct list_item *it = NULL;
@@ -70,17 +96,20 @@ static ssize_t modlist_write(struct file *filp, const char __user *buf, size_t l
 			if(item->data == num){
 				list_del(&(item->links));
 				vfree(item);
+				count--;
 			}
 		}
 	}
 	else if(strncmp(command_buf, "cleanup", len-1) == 0){
 		modlist_cleanup();
+		count = 0;
 	}
 	else {
 		printk(KERN_INFO "ERROR: comando inválido.\n");
 	}
 	return len;
 }
+
 
 static ssize_t modlist_read(struct file *filp, char __user *buf, size_t len, loff_t *off) {
   
@@ -119,10 +148,24 @@ static ssize_t modlist_read(struct file *filp, char __user *buf, size_t len, lof
 	return nr_bytes; 
 }
 
+static int swaps_open(struct inode *inode, struct file *file)
+{
+        return seq_open(file, &modlist_op);
+}
 
 static const struct file_operations proc_entry_fops = {
-    .read = modlist_read,
-    .write = modlist_write,    
+    .open = modlist_open
+    .read = seq_read,
+    .write = modlist_write, 
+    .llseek = seq_lseek,
+    .release = seq_release,   
+};
+
+static struct seq_operations modlist_op = {
+        .start =        modlist_start,
+        .next =         modlist_next,
+        .stop =         modlist_stop,
+        .show =         modlist_show
 };
 
 int init_modlist_module( void )
