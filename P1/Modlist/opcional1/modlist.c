@@ -11,8 +11,8 @@ MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Modlist Kernel Module - FDI-UCM");
 MODULE_AUTHOR("Xukai Chen, Daniel Alfaro");
 
-#define MAX_SIZE      		32
-#define TEMP_BUFFER_LENGTH  256
+#define MAX_SIZE      		12
+#define TEMP_BUFFER_LENGTH  4
 #define COMMANDS_LENGTH		100	
 
 static struct proc_dir_entry *proc_entry;
@@ -124,7 +124,7 @@ static ssize_t modlist_read(struct file *filp, char __user *buf, size_t len, lof
 		nr_bytes = ptr_rdbuf - rd_buf;
 		to_wt = TEMP_BUFFER_LENGTH - nr_bytes;
 		
-		if ((to_wt - nr_bytes) < sprintf(ptr_data, "%s\n", item->data)){
+		if ( to_wt < sprintf(ptr_data, "%s\n", item->data)){
 			trace_printk("Modlist: Looping on buffer: %d out %d.\n", nr_bytes, TEMP_BUFFER_LENGTH);
 			do {
 				wt_bytes = snprintf(ptr_rdbuf, to_wt, ptr_data);
@@ -136,7 +136,7 @@ static ssize_t modlist_read(struct file *filp, char __user *buf, size_t len, lof
 				total_bytes += TEMP_BUFFER_LENGTH - 1;
 				wt_bytes -= to_wt - 1;
 				to_wt = TEMP_BUFFER_LENGTH;
-			}while (TEMP_BUFFER_LENGTH < wt_bytes);
+			}while (TEMP_BUFFER_LENGTH <= wt_bytes);
 		}
 		ptr_rdbuf += sprintf(ptr_rdbuf, ptr_data);
 		ptr_data = data_buf;
@@ -224,7 +224,7 @@ static ssize_t modlist_write(struct file *filp, const char __user *buf, size_t l
 
 static ssize_t modlist_read(struct file *filp, char __user *buf, size_t len, loff_t *off) {
   
-	int nr_bytes, total_bytes = 0, wt_bytes = 0, to_wt = 0, num_len = 0;			// return value
+	int nr_bytes, total_bytes = 0, wt_bytes = 0, to_wt = 0;			// return value
 	struct list_item *it, *item = NULL; // iterator and temp value
 	char rd_buf[TEMP_BUFFER_LENGTH];
 	char data_buf[MAX_SIZE];
@@ -247,7 +247,7 @@ static ssize_t modlist_read(struct file *filp, char __user *buf, size_t len, lof
 		nr_bytes = ptr_rdbuf - rd_buf;
 		to_wt = TEMP_BUFFER_LENGTH - nr_bytes;
 		
-		if ((to_wt - nr_bytes) < sprintf(ptr_data, "%d\n", item->data)){
+		if (to_wt < sprintf(ptr_data, "%d\n", item->data)){
 			trace_printk("Modlist: Looping on buffer: %d out %d.\n", nr_bytes, TEMP_BUFFER_LENGTH);
 			do {
 				wt_bytes = snprintf(ptr_rdbuf, to_wt, ptr_data);
@@ -259,7 +259,7 @@ static ssize_t modlist_read(struct file *filp, char __user *buf, size_t len, lof
 				total_bytes += TEMP_BUFFER_LENGTH - 1;
 				wt_bytes -= to_wt - 1;
 				to_wt = TEMP_BUFFER_LENGTH;
-			}while (TEMP_BUFFER_LENGTH < wt_bytes);
+			}while (TEMP_BUFFER_LENGTH <= wt_bytes);
 		}
 		ptr_rdbuf += sprintf(ptr_rdbuf, ptr_data);
 		ptr_data = data_buf;

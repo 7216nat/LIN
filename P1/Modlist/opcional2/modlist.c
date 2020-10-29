@@ -34,9 +34,7 @@ static int count = 0;
 /*********parte opcional************/
 
 static void *modlist_start(struct seq_file *f, loff_t *pos){
-	struct list_head *temp = NULL;
-	temp = (&mylist)->next;
-	return (*pos < count) ? temp : NULL;
+	return (*pos < count) ? (&mylist)->next : NULL;
 }
 
 static void modlist_stop(struct seq_file *f, void *v){
@@ -54,14 +52,14 @@ static void *modlist_next(struct seq_file *f, void *v, loff_t *pos){
 }
 
 static int modlist_show(struct seq_file *pi, void *v){
-	struct list_head *temp = NULL;
 	struct list_item *item = NULL;
-	temp = v;
-	item = list_entry(temp, struct list_item, links);
+	item = list_entry(v, struct list_item, links);
 	trace_printk("Debugging --> data's value: %d.\n", item->data);
 	seq_printf(pi, "%d\n", item->data);
 	return 0;
 }
+
+/*********parte opcional************/
 
 void modlist_cleanup ( void ){
 	/* cleanup de la lista */
@@ -70,6 +68,7 @@ void modlist_cleanup ( void ){
 		list_del(&(item->links));
 		vfree(item);
 	}
+	count = 0;
 	/************************/
 }
 
@@ -151,7 +150,7 @@ static ssize_t modlist_read(struct file *filp, char __user *buf, size_t len, lof
 		nr_bytes = ptr_rdbuf - rd_buf;
 		to_wt = TEMP_BUFFER_LENGTH - nr_bytes;
 		
-		if ((to_wt - nr_bytes) < sprintf(ptr_data, "%d\n", item->data)){
+		if ( to_wt < sprintf(ptr_data, "%d\n", item->data)){
 			trace_printk("Modlist: Looping on buffer: %d out %d.\n", nr_bytes, TEMP_BUFFER_LENGTH);
 			do {
 				wt_bytes = snprintf(ptr_rdbuf, to_wt, ptr_data);
@@ -163,7 +162,7 @@ static ssize_t modlist_read(struct file *filp, char __user *buf, size_t len, lof
 				total_bytes += TEMP_BUFFER_LENGTH - 1;
 				wt_bytes -= to_wt - 1;
 				to_wt = TEMP_BUFFER_LENGTH;
-			}while (TEMP_BUFFER_LENGTH < wt_bytes);
+			}while (TEMP_BUFFER_LENGTH <= wt_bytes);
 		}
 		ptr_rdbuf += sprintf(ptr_rdbuf, ptr_data);
 		ptr_data = data_buf;

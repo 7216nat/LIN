@@ -12,7 +12,7 @@ MODULE_DESCRIPTION("Modlist Kernel Module - FDI-UCM");
 MODULE_AUTHOR("Xukai Chen, Daniel Alfaro");
 
 #define MAX_SIZE      		12
-#define TEMP_BUFFER_LENGTH  256
+#define TEMP_BUFFER_LENGTH  4
 #define COMMANDS_LENGTH		100	
 
 static struct proc_dir_entry *proc_entry;
@@ -90,11 +90,11 @@ static ssize_t modlist_write(struct file *filp, const char __user *buf, size_t l
 
 static ssize_t modlist_read(struct file *filp, char __user *buf, size_t len, loff_t *off) {
   
-	int nr_bytes, total_bytes = 0, wt_bytes = 0, to_wt = 0;			// return value
-	struct list_item *it, *item = NULL; // iterator and temp value
-	char rd_buf[TEMP_BUFFER_LENGTH];
-	char data_buf[MAX_SIZE];
-	char *ptr_rdbuf = rd_buf, *ptr_buf = buf, *ptr_data = data_buf;
+	int nr_bytes, total_bytes = 0, wt_bytes = 0, to_wt = 0;			// nr_bytes: aux, total_bytes: return value, wt_bytes: bytes to write, to_wt: max bytes can write on buffer 
+	struct list_item *it, *item = NULL; 							// iterator and temp value
+	char rd_buf[TEMP_BUFFER_LENGTH];								// temp buffer
+	char data_buf[MAX_SIZE];										// aux buffer, number to char 
+	char *ptr_rdbuf = rd_buf, *ptr_buf = buf, *ptr_data = data_buf; // as names indicate
 	
 	if ((*off) > 0) /* Tell the application that there is nothing left to read */
 		return 0;
@@ -102,7 +102,7 @@ static ssize_t modlist_read(struct file *filp, char __user *buf, size_t len, lof
 	trace_printk("Debugging --> len's value: %lu.\n", len);
 	trace_printk("Debugging --> off's value: %lu.\n", (*off));
 	*/
-	// excepcion de ENOSPC para buffer no controlada
+
 	list_for_each_entry_safe(item, it, &mylist, links){
 		/*
 		trace_printk("Debugging --> Current length of read buffer: %ld.\n", (ptr_rdbuf - rd_buf));
@@ -113,19 +113,19 @@ static ssize_t modlist_read(struct file *filp, char __user *buf, size_t len, lof
 		nr_bytes = ptr_rdbuf - rd_buf;
 		to_wt = TEMP_BUFFER_LENGTH - nr_bytes;
 		
-		if ((to_wt - nr_bytes) < sprintf(ptr_data, "%d\n", item->data)){
+		if ( to_wt < sprintf(ptr_data, "%d\n", item->data)){
 			trace_printk("Modlist: Looping on buffer: %d out %d.\n", nr_bytes, TEMP_BUFFER_LENGTH);
 			do {
 				wt_bytes = snprintf(ptr_rdbuf, to_wt, ptr_data);
 				if (copy_to_user(ptr_buf, rd_buf, TEMP_BUFFER_LENGTH))
 					return -EINVAL;
-				ptr_buf += TEMP_BUFFER_LENGTH - 1;
+				ptr_buf += TEMP_BUFFER_LENGTH - 1;		
 				ptr_rdbuf = rd_buf;
 				ptr_data += to_wt - 1;
 				total_bytes += TEMP_BUFFER_LENGTH - 1;
 				wt_bytes -= to_wt - 1;
 				to_wt = TEMP_BUFFER_LENGTH;
-			}while (TEMP_BUFFER_LENGTH < wt_bytes);
+			}while (TEMP_BUFFER_LENGTH <= wt_bytes);
 		}
 		ptr_rdbuf += sprintf(ptr_rdbuf, ptr_data);
 		ptr_data = data_buf;
