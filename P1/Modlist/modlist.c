@@ -79,7 +79,7 @@ static ssize_t modlist_write(struct file *filp, const char __user *buf, size_t l
 			}
 		}
 	}
-	else if(strncmp(command_buf, "cleanup", len-1) == 0){
+	else if(strncmp(command_buf, "cleanup\n", len) == 0){
 		modlist_cleanup();
 	}
 	else {
