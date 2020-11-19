@@ -98,12 +98,13 @@ static int blink_release(struct inode *inode, struct file *file)
 
 #define NR_LEDS 8
 #define NR_BYTES_BLINK_MSG 6
+#define MAX_LEN 88
 
 
 
 #define NR_SAMPLE_COLORS 4
 
-unsigned int sample_colors[]={0x000011, 0x110000, 0x001100, 0x000000};
+unsigned int sample_colors=0x000000;
 
 /* Called when a user program invokes the write() system call on the device */
 static ssize_t blink_write(struct file *file, const char *user_buffer,
@@ -112,34 +113,72 @@ static ssize_t blink_write(struct file *file, const char *user_buffer,
 	struct usb_blink *dev=file->private_data;
 	int retval = 0;
 	int i=0;
-	unsigned char* message;
-	static int color_cnt=0;
 	unsigned int color;
-
-	message=kmalloc(NR_BYTES_BLINK_MSG,GFP_DMA);
+	int pos;
+	unsigned char *message;
+	char *kbuf = NULL;
+	char *it_kbuf, *ptr_kbuf, *ptr_message;
 	
-	/* Pick a color and get ready for the next invocation*/		
-	color=sample_colors[color_cnt++];
-
-	/* Reset the color counter if necessary */	
-	if (color_cnt == NR_SAMPLE_COLORS)
-		color_cnt=0;
+	if ((*off)>0){
+		return 0;
+	}
 	
-	/* zero fill*/
-	memset(message,0,NR_BYTES_BLINK_MSG);
-
-	/* Fill up the message accordingly */
-	message[0]='\x05';
-	message[1]=0x00;
-	message[2]=0; 
-	message[3]=((color>>16) & 0xff);
- 	message[4]=((color>>8) & 0xff);
- 	message[5]=(color & 0xff);
-
-
+	if (len > MAX_LEN){
+		printk(KERN_INFO "Blinkstick: only 8 leds needed.\n");
+		return -ENOSPC;
+	}
+	
+	/* size allocation */
+	message=kmalloc(NR_BYTES_BLINK_MSG*NR_BYTES_BLINK_MSG,GFP_DMA);
+	kbuf=kmalloc(len+1, GFP_DMA);
+	// printk(KERN_INFO "%s\n", kbuf);
+	
+	/* copy from user */
+	if (copy_from_user(kbuf, user_buffer, len)){
+		retval =  -EFAULT;
+		goto out_error;
+	} 
+	kbuf[len]='\0';
+	
+	/* zero fill */
+	memset(message,0,NR_BYTES_BLINK_MSG*NR_BYTES_BLINK_MSG);
+	
+	/* filling up */
+	for (i=0; i<NR_LEDS; i++){
+		message[0+i*NR_BYTES_BLINK_MSG]='\x05';
+		message[1+i*NR_BYTES_BLINK_MSG]=0x00; 
+	} 
+	
+	/* parsing kbuf */
+	if (strlen(kbuf) > 1){
+		it_kbuf = kbuf;
+		while(it_kbuf != NULL){
+			ptr_kbuf = strsep(&it_kbuf, ",");
+			if (sscanf(ptr_kbuf, "%i:%x", &pos, &color) == 2){
+				message[pos*NR_BYTES_BLINK_MSG+2]=pos;
+				message[pos*NR_BYTES_BLINK_MSG+3]=((color>>16) & 0xff);
+			 	message[pos*NR_BYTES_BLINK_MSG+4]=((color>>8) & 0xff);
+			 	message[pos*NR_BYTES_BLINK_MSG+5]=(color & 0xff);
+			}
+			else{
+				printk(KERN_ALERT "Blinkstick: wrong format --> %s.", ptr_kbuf);
+				retval = -EINVAL;
+				goto out_error;
+			}
+		}
+	}
+	
+	else {
+		for (i=0;i<NR_LEDS;i++){
+			message[i*NR_BYTES_BLINK_MSG+2]=i;
+			message[i*NR_BYTES_BLINK_MSG+3]=((sample_colors>>16) & 0xff);
+		 	message[i*NR_BYTES_BLINK_MSG+4]=((sample_colors>>8) & 0xff);
+		 	message[i*NR_BYTES_BLINK_MSG+5]=(sample_colors & 0xff);
+		}
+	}
+	
+	ptr_message=message;
 	for (i=0;i<NR_LEDS;i++){
-
-		message[2]=i; /* Change Led number in message */
 	
 		/* 
 		 * Send message (URB) to the Blinkstick device 
@@ -151,7 +190,7 @@ static ssize_t blink_write(struct file *file, const char *user_buffer,
 			 USB_DIR_OUT| USB_TYPE_CLASS | USB_RECIP_DEVICE,
 			 0x5,	/* wValue */
 			 0, 	/* wIndex=Endpoint # */
-			 message,	/* Pointer to the message */ 
+			 ptr_message,	/* Pointer to the message */ 
 			 NR_BYTES_BLINK_MSG, /* message's size in bytes */
 			 0);		
 
@@ -159,14 +198,18 @@ static ssize_t blink_write(struct file *file, const char *user_buffer,
 			printk(KERN_ALERT "Executed with retval=%d\n",retval);
 			goto out_error;		
 		}
+		
+		ptr_message+=NR_BYTES_BLINK_MSG;
 	}
 
 	kfree(message);
+	kfree(kbuf);
 	(*off)+=len;
 	return len;
 
 out_error:
 	kfree(message);
+	kfree(kbuf);
 	return retval;	
 }
 
