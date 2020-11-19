@@ -1,1 +1,0 @@
-while true; do echo uuu > /dev/usb/blinkstick0 ; sleep 0.3; done
