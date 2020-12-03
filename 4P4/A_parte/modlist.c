@@ -6,6 +6,7 @@
 #include <linux/uaccess.h>
 #include <linux/ftrace.h>
 #include <linux/list.h>
+#include <asm/spinlock.h>
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Modlist Kernel Module - FDI-UCM");
@@ -16,11 +17,6 @@ MODULE_AUTHOR("Xukai Chen, Daniel Alfaro");
 #define COMMANDS_LENGTH		100	
 
 static struct proc_dir_entry *proc_entry;
-/*
-static char* command_buf;
-static char* rd_buf;
-static char* data_buf;
-*/
 struct list_head mylist; // nodo fantasma
 
 struct list_item {
@@ -28,13 +24,19 @@ struct list_item {
 	struct list_head links;
 };
 
+// Commit P4
+static spinlock_t mtx;
+
 void modlist_cleanup ( void ){
 	/* cleanup de la lista */
 	struct list_item *it, *item = NULL;
+	// commit P4 
+	spin_lock(&mtx);
 	list_for_each_entry_safe(item, it, &mylist, links){ // esto recorre las entradas de la lista
 		list_del(&(item->links));
 		vfree(item);
 	}
+	spin_unlock(&mtx);
 	/************************/
 }
 
@@ -67,17 +69,24 @@ static ssize_t modlist_write(struct file *filp, const char __user *buf, size_t l
 		item = (struct list_item *) vmalloc(sizeof (struct list_item));
 		if (!item)
 			return -ENOMEM;
+			
+		// commit P4 
+		spin_lock(&mtx);
 		item->data = num;
 		list_add_tail(&(item->links), &mylist);
+		spin_unlock(&mtx);
 	}
 	else if(sscanf(command_buf, "remove %d", &num) == 1){
 		struct list_item *it = NULL;
+		// commit P4 
+		spin_lock(&mtx);
 		list_for_each_entry_safe(item, it, &mylist, links){
 			if(item->data == num){
 				list_del(&(item->links));
 				vfree(item);
 			}
 		}
+		spin_unlock(&mtx);
 	}
 	else if(strncmp(command_buf, "cleanup\n", len) == 0){
 		modlist_cleanup();
@@ -98,17 +107,10 @@ static ssize_t modlist_read(struct file *filp, char __user *buf, size_t len, lof
 	
 	if ((*off) > 0) /* Tell the application that there is nothing left to read */
 		return 0;
-	/*
-	trace_printk("Debugging --> len's value: %lu.\n", len);
-	trace_printk("Debugging --> off's value: %lu.\n", (*off));
-	*/
-
+	
+	// commit P4 
+	spin_lock(&mtx);
 	list_for_each_entry_safe(item, it, &mylist, links){
-		/*
-		trace_printk("Debugging --> Current length of read buffer: %ld.\n", (ptr_rdbuf - rd_buf));
-		trace_printk("Debugging --> Current remaining buffer: %lu.\n", (TEMP_BUFFER_LENGTH - (ptr_rdbuf - rd_buf)));
-		trace_printk("Debugging --> Current length written: %d.\n", sprintf(data_buf, "%d\n", item->data));
-		*/
 		
 		nr_bytes = ptr_rdbuf - rd_buf;
 		to_wt = TEMP_BUFFER_LENGTH - nr_bytes;
@@ -130,6 +132,7 @@ static ssize_t modlist_read(struct file *filp, char __user *buf, size_t len, lof
 		ptr_rdbuf += sprintf(ptr_rdbuf, ptr_data);
 		ptr_data = data_buf;
 	}
+	spin_unlock(&mtx);
 	total_bytes += ptr_rdbuf - rd_buf;
 		
 	if (len<total_bytes)
@@ -153,37 +156,15 @@ static const struct file_operations proc_entry_fops = {
 int init_modlist_module( void )
 {
 	int ret = 0;
-	/*
-	command_buf = (char *)vmalloc( COMMANDS_LENGTH );
-	if (!command_buf) ret = -ENOMEM;
-	else {
-		rd_buf = (char *)vmalloc( TEMP_BUFFER_LENGTH );
-		if (!rd_buf){
-			ret = -ENOMEM;
-			vfree(command_buf);
-		}else {
-			data_buf = (char *)vmalloc( MAX_SIZE );
-			if (!data_buf){
-				ret = -ENOMEM;
-				vfree(command_buf);
-				vfree(rd_buf);
-			}
-		}	
-	}
-	*/
-
-	//if (ret != 0) return ret;
 		
 	proc_entry = proc_create( "modlist", 0666, NULL, &proc_entry_fops);
 	if (proc_entry == NULL) {
 		ret = -ENOMEM;
-		/*
-		vfree(command_buf);
-		vfree(rd_buf);
-		vfree(data_buf);
-		*/
     	printk(KERN_INFO "Modlist: Can't create /proc entry\n");
 	} else {
+		// commit P4
+		spin_lock_init(&mtx);
+		
 		INIT_LIST_HEAD(&mylist);
 		printk(KERN_INFO "Modlist: Module loaded\n");
 	}

@@ -10,7 +10,7 @@
 
 SYSCALL_DEFINE1(ledctl, unsigned int, leds){
 	struct tty_driver* kbd_driver = vc_cons[fg_console].d->port.tty->driver;
-	mask &= ALL_LEDS_ON;
-	return (handler->ops->ioctl) (vc_cons[fg_console].d->port.tty, KDSETLED,mask);
+	leds &= ALL_LEDS_ON;
+	return (kbd_driver->ops->ioctl) (vc_cons[fg_console].d->port.tty, KDSETLED,leds);
 }
 

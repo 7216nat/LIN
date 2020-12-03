@@ -27,7 +27,7 @@ int main(int argc, char *argv[]){
 		navidad();
 	else{
 		printf("Usage: %s command.\n", argv[0]);
-		printf("./%s ondas --> secuencias de ondas", argv[0]);
+		printf("./%s navidad --> luces de navidad", argv[0]);
 		return -1;
 	}
 	return ret;	
