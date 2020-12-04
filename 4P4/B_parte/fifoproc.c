@@ -3,7 +3,6 @@
 #include <linux/proc_fs.h>
 #include <linux/string.h>
 #include <linux/vmalloc.h>
-#include <linux/vmalloc.h>
 #include <linux/uaccess.h>
 #include <asm-generic/errno.h>
 #include <linux/semaphore.h>
