@@ -119,8 +119,10 @@ static ssize_t modlist_read(struct file *filp, char __user *buf, size_t len, lof
 			trace_printk("Modlist: Looping on buffer: %d out %d.\n", nr_bytes, TEMP_BUFFER_LENGTH);
 			do {
 				wt_bytes = snprintf(ptr_rdbuf, to_wt, ptr_data);
-				if (copy_to_user(ptr_buf, rd_buf, TEMP_BUFFER_LENGTH))
+				if (copy_to_user(ptr_buf, rd_buf, TEMP_BUFFER_LENGTH)){
+					spin_unlock(&mtx);
 					return -EINVAL;
+				}
 				ptr_buf += TEMP_BUFFER_LENGTH - 1;		
 				ptr_rdbuf = rd_buf;
 				ptr_data += to_wt - 1;

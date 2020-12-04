@@ -81,8 +81,8 @@ static int fifoproc_release (struct inode *inode, struct file *file){
 	
 	if(file->f_mode & FMODE_READ){ // cons
 		cons_count--;
-		// cond_broadcast(condProd)
-		while (nr_prod_waiting > 0){
+		// cond_signal(condProd)
+		if (nr_prod_waiting > 0){
 			nr_prod_waiting--;
 			up(&prod_queue);
 		}
@@ -90,8 +90,8 @@ static int fifoproc_release (struct inode *inode, struct file *file){
 	} else { //prod
 		prod_count--;
 			
-		// cond_broadcast(condCons)
-		while (nr_cons_waiting > 0){
+		// cond_signal(condCons)
+		if (nr_cons_waiting > 0){
 			nr_cons_waiting--;
 			up(&cons_queue);
 		}
@@ -118,7 +118,6 @@ static ssize_t fifoproc_write(struct file *filp, const char __user *buf, size_t 
 	}
 
 	kbuff[len] ='\0';
-	//*off+=len;            /* Update the file pointer */
 
 	/* Acceso a la sección crítica */
 	if (down_interruptible(&mtx))
@@ -220,8 +219,6 @@ static ssize_t fifoproc_read(struct file *filp, char __user *buf, size_t len, lo
 
 	if (copy_to_user(buf,kbuff,len))
 		return -EFAULT;
-
-	//(*off)+=len;  /* Update the file pointer */
 
 	return len;
 }
