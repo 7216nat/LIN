@@ -23,15 +23,18 @@ void fifoproc_open(bool abre_para_lectura) {
 		while(cons_count == 0)
 			cond_wait(prod, mtx);
 	}
-	unlock(mtx)
+	unlock(mtx);
 }
 
 void fifoproc_release(bool lectura) { 
 	lock(mtx)
+	
+	/* Avisa a posible productor bloqueado*/
 	if(lectura){
 		cons_count--;
 		cond_signal(prod);
 	}
+	/* Avisa a posible consumidor bloqueado*/
 	else {
 		prod_count--;
 		cond_signal(cons);
@@ -78,10 +81,10 @@ int fifoproc_read(const char* buff, int len) {
 	if (len> MAX_CBUFFER_LEN || len> MAX_KBUF) { return Error;}
 
 	lock(mtx);	
-	/* Esperar hasta que haya hueco para insertar (debe haber consumidores) */
+	/* Esperar hasta que haya hueco para insertar (debe haber productores) */
 	/* El consumidor se bloquea si el buffer contiene menos bytes que los solicitados
        mediante read()*/
-	while (kfifo_len(&cbuffer)<len){
+	while (kfifo_len(&cbuffer)<len && prod_count>0){
 		cond_wait(cons,mtx);
 	}
 	
@@ -90,7 +93,7 @@ int fifoproc_read(const char* buff, int len) {
        haya productores, el módulo devolverá el valor 0 (EOF)*/
 	if (prod_count==0 && kfifo_is_empty(&cbuf)) {
 		unlock(mtx); 
-		return -EPIPE;
+		return 0;
 	}
 
 	

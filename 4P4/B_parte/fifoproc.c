@@ -39,6 +39,7 @@ static int fifoproc_open(struct inode *inode, struct file *file) {
 			// cond_wait(condCons, mtx)
 			nr_cons_waiting++;
 			up(&mtx);
+			// en caso de interrupcion, restablecer cons_count y nr_cons_waiting
 			if(down_interruptible(&cons_queue)){
 				down(&mtx);
 				nr_cons_waiting--;
@@ -61,6 +62,7 @@ static int fifoproc_open(struct inode *inode, struct file *file) {
 			// cond_wait(condProd, mtx)
 			nr_prod_waiting++;
 			up(&mtx);
+			// en caso de interrupcion, restablecer cons_count y nr_cons_waiting
 			if(down_interruptible(&prod_queue)){
 				down(&mtx);
 				nr_prod_waiting--;
@@ -81,6 +83,7 @@ static int fifoproc_release (struct inode *inode, struct file *file){
 	if(file->f_mode & FMODE_READ){ // cons
 		cons_count--;
 		// cond_signal(condProd)
+		// Avisar a algun productor bloqueado 
 		if (nr_prod_waiting > 0){
 			nr_prod_waiting--;
 			up(&prod_queue);
@@ -90,6 +93,7 @@ static int fifoproc_release (struct inode *inode, struct file *file){
 		prod_count--;
 			
 		// cond_signal(condCons)
+		// Avisar a algun consumidor bloqueado
 		if (nr_cons_waiting > 0){
 			nr_cons_waiting--;
 			up(&cons_queue);
