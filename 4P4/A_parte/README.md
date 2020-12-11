@@ -1,0 +1,2 @@
+- Script de consumidor consume numeros de 0-20 en un bucle infinito, salida: lo que ha consumido
+- Script de productor, produce numeros de 0-20 en un bucle infinito, salida: lo que ha producido y todos los elementos que hay en lista.
