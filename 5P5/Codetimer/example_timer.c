@@ -13,11 +13,12 @@ struct timer_list my_timer; /* Structure that describes the kernel timer */
 
 /* Function invoked when timer expires (fires) */
 static void fire_timer(unsigned long data)
-{
+{   
+    char buf[1024];
 	int len = strlen(code_format), i;
     unsigned int rand = get_random_int();
-    static char flag[5];
-    flag[len] = '\0'; 
+    static char flag[8];
+    // flag[len] = '\0'; 
     
     for (i = 0 ; i < len; i++){
         if (isalpha(code_format[i])) {
@@ -26,7 +27,7 @@ static void fire_timer(unsigned long data)
         else flag[i] = (((rand >> i*8) & 0xff)%10)+code_format[i];
     }
     
-    printk(KERN_INFO "Generated code: %s\n", flag);
+    printk(KERN_INFO "Generated code: %ss\n, %d", flag, sprintf(buf, "%s\n", flag));
     //kfree(flag);
         /* Re-activate the timer one second from now */
 	mod_timer( &(my_timer), jiffies + HZ); 
