@@ -1,1 +1,0 @@
-cmd_/home/kernel/LIN/6P6/practfinal/ParteB/multilist.ko := ld -r -m elf_x86_64  -z max-page-size=0x200000 -T /home/kernel/oreo-src/kernel/scripts/module-common.lds --build-id  -o /home/kernel/LIN/6P6/practfinal/ParteB/multilist.ko /home/kernel/LIN/6P6/practfinal/ParteB/multilist.o /home/kernel/LIN/6P6/practfinal/ParteB/multilist.mod.o ;  true
